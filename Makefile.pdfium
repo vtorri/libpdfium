@@ -1,0 +1,943 @@
+# GNU Makefile
+
+# prerequisites
+# - build_config.h
+# - ICU
+# - lcms2
+# - freetype
+# - libpng
+# - openjpeg
+# - libtiff
+
+default: all
+
+# Help
+
+help:
+	@echo
+	@echo "Options:"
+	@echo "OS........: Unix | Windows | Darwin"
+	@echo "host......: host followed by minus added to compilers and tools"
+	@echo "profile...: debug | release (change compilation flags)"
+	@echo "prefix....: installation prefix"
+	@echo "CC........: C compiler"
+	@echo "CXX.......: C++ compiler"
+	@echo "CFLAGS....: user defined C flags"
+	@echo "LDFLAGS...: user defined linker flags"
+	@echo "V.........: 0: not verbose, 1: verbose"
+	@echo
+	@echo "make status to know the configuration"
+
+# Status
+status:
+	@echo
+	@echo "Configuration:"
+	@echo "  OS.........:" $(OS) \($(osname)\)
+	@echo "  arch.......:" $(arch)
+	@echo "  host.......:" $(host)
+	@echo "  profile....:" $(profile)
+	@echo "  prefix.....:" $(prefix)
+	@echo
+	@echo "Compilation..: make (or gmake)"
+	@echo "  CC.........:" $(CC)
+	@echo "  CXX........:" $(CXX)
+	@echo "  CFLAGS.....:" $(CFLAGS)
+	@echo "  LDFLAGS....:" $(LDFLAGS)
+	@echo
+	@echo "Installation.: make install (as root ('su' or 'sudo') if needed)"
+	@echo "  prefix.....:" $(prefix)
+	@echo
+	@echo "Help.........: make help"
+
+# Dependencies
+
+#ifneq ($(shell pkg-config --exists lcms2 && echo yes),yes)
+#  $(error missing lcms2 library)
+#endif
+ifneq ($(shell pkg-config --exists icu-uc && echo yes),yes)
+  $(error missing ICU library)
+endif
+ifneq ($(shell pkg-config --exists freetype2 && echo yes),yes)
+  $(error missing freetype2 library)
+endif
+ifneq ($(shell pkg-config --exists libjpeg && echo yes),yes)
+  $(error missing libjpeg library)
+endif
+ifneq ($(shell pkg-config --exists libpng && echo yes),yes)
+  $(error missing libpng library)
+endif
+ifneq ($(shell pkg-config --exists libopenjp2 && echo yes),yes)
+  $(error missing openjpeg library)
+endif
+ifneq ($(shell pkg-config --exists libtiff-4 && echo yes),yes)
+  $(error missing libtiff library)
+endif
+ifneq ($(shell pkg-config --exists zlib && echo yes),yes)
+  $(error missing zlib library)
+endif
+
+# Configuration
+
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+libdir ?= $(prefix)/lib
+incdir ?= $(prefix)/include
+host ?=
+profile ?= debug
+
+osname := $(shell uname)
+OS :=$(osname)
+OS := $(OS:Linux=Unix)
+# FreeBSD, OpenBSD, NetBSD, MidnightBSD
+OS := $(OS:%BSD=Unix)
+OS := $(OS:DragonFlyD=Unix)
+OS := $(OS:SunOS=Unix)
+OS := $(OS:MINGW%=Windows)
+OS := $(OS:MSYS%=Windows)
+OS := $(OS:Windows_NT=Windows)
+OS := $(OS:Darwin=MACOS)
+
+PCFLAGS := -I. -ffunction-sections -fdata-sections
+PLDFLAGS :=
+
+ifeq ($(OS),MACOS)
+  PLDFLAGS += -Wl,-dead_strip -framework AppKit.framework -framework CoreFoundation.framework
+else
+  PLDFLAGS += -Wl,--gc-sections
+endif
+
+ifeq ($(OS),Windows)
+  PCFLAGS += -DUNICODE -DWIN32_LEAN_AND_MEAN -DPDFIUM_PRINT_TEXT_WITH_GDI
+  PLDFLAGS += -lgdi32
+endif
+
+PCFLAGS += `pkg-config --cflags freetype2 icu-uc lcms2 libjpeg libopenjp2 libpng zlib` -DUSE_SYSTEM_ICUUC -DUSE_SYSTEM_LCMS2 -DUSE_SYSTEM_LIBJPEG -DUSE_SYSTEM_LIBPNG -DUSE_SYSTEM_ZLIB -DDEFINE_PS_TABLES_DATA
+PLDFLAGS += `pkg-config --libs freetype2 icu-uc lcms2 libjpeg libopenjp2 libpng zlib`
+
+ifeq ($(profile),debug)
+  PCFLAGS += -pipe -g3 -ggdb3 -Og
+else ifeq ($(profile),release)
+  PCFLAGS += -pipe -O2 -DNDEBUG -fomit-frame-pointer -march=native -fvisibility=hidden
+  PLDFLAGS += -Wl,-s
+else
+  $(error unknown profile setting: '$(profile)')
+endif
+
+CFLAGS += $(PCFLAGS) \
+  -Wshadow \
+  -Wall \
+  -Wextra \
+  -Wpointer-arith
+LDFLAGS += $(PLDFLAGS)
+
+ifeq ($(host),)
+  CC = gcc
+  CXX = g++
+else
+  CC = $(host)-gcc
+  CXX = $(host)-g++
+endif
+
+dump = $(shell $(CC) -dumpmachine)
+ifeq ($(filter x86_64%, $(dump)),)
+  arch := i686
+else
+  arch := x86_64
+endif
+
+ifeq ($(arch),x86_64)
+  PCFLAGS += -D_FX_CPU_=_FX_X64_
+ifneq ($(OS),Windows)
+  PCFLAGS += -fPIC
+endif
+else
+  PCFLAGS += -D_FX_CPU_=_FX_X86_
+endif
+
+PCXXFLAGS := -std=c++11 -fno-exceptions
+
+ifneq (,$(filter $(OS),SunOS))
+  INSTALL ?= ginstall
+else
+  INSTALL ?= install
+endif
+
+INSTALL_LIB ?= $(INSTALL)
+INSTALL_HDR ?= $(INSTALL) -m 644
+
+# Output
+
+OUT := out/$(osname)/$(profile)
+ifeq ($(OS),Windows)
+  PDFIUM_LIB = $(OUT)/libpdfium.dll
+  PDFIUM_IMPLIB = $(OUT)/libpdfium.dll.a
+  PDFIUM_IMPLIB_LINK = -Wl,--out-implib,$(PDFIUM_IMPLIB)
+else
+  PDFIUM_LIB = $(OUT)/libpdfium.so
+endif
+
+# Verbosity
+V ?= 0
+ifeq ($(V),0)
+  NV_MKDIRP = @echo "    MK $@";
+  NV_RM =     @echo "    RM $@";
+  NV_CC =     @echo "    CC $@";
+  NV_CXX =    @echo "   CXX $@";
+  NV_LINK =   @echo "  LINK $@";
+endif
+
+CMD_MKDIRP = $(NV_MKDIRP) mkdir -p
+CMD_RM = $(NV_RM) rm -rf
+CMD_CC = $(NV_CC) $(CC) $(CFLAGS) -c -o $@ $^
+CMD_CXX = $(NV_CXX) $(CXX) $(CFLAGS) $(PCXXFLAGS) -c -o $@ $^
+CMD_LINK = $(NV_LINK) $(CXX) -shared $(PDFIUM_IMPLIB_LINK) -o $@ $^ $(LDFLAGS)
+
+
+# Files
+
+PDFIUM_PUBLIC_HDR := \
+    fpdf_annot.h \
+    fpdf_attachment.h \
+    fpdf_catalog.h \
+    fpdf_dataavail.h \
+    fpdf_doc.h \
+    fpdf_edit.h \
+    fpdf_ext.h \
+    fpdf_flatten.h \
+    fpdf_formfill.h \
+    fpdf_fwlevent.h \
+    fpdf_ppo.h \
+    fpdf_progressive.h \
+    fpdf_save.h \
+    fpdf_searchex.h \
+    fpdf_structtree.h \
+    fpdf_sysfontinfo.h \
+    fpdf_text.h \
+    fpdf_transformpage.h \
+    fpdfview.h
+
+PDFIUM_PUBLIC_CPP_HDR := \
+    fpdf_deleters.h \
+    fpdf_scopers.h
+
+PDFIUM_FPDFSDK_SRC := \
+    fpdfsdk/fpdf_annot.cpp \
+    fpdfsdk/fpdf_attachment.cpp \
+    fpdfsdk/fpdf_catalog.cpp \
+    fpdfsdk/fpdf_dataavail.cpp \
+    fpdfsdk/fpdf_doc.cpp \
+    fpdfsdk/fpdf_editimg.cpp \
+    fpdfsdk/fpdf_editpage.cpp \
+    fpdfsdk/fpdf_editpath.cpp \
+    fpdfsdk/fpdf_edittext.cpp \
+    fpdfsdk/fpdf_ext.cpp \
+    fpdfsdk/fpdf_flatten.cpp \
+    fpdfsdk/fpdf_formfill.cpp \
+    fpdfsdk/fpdf_ppo.cpp \
+    fpdfsdk/fpdf_progressive.cpp \
+    fpdfsdk/fpdf_save.cpp \
+    fpdfsdk/fpdf_searchex.cpp \
+    fpdfsdk/fpdf_structtree.cpp \
+    fpdfsdk/fpdf_sysfontinfo.cpp \
+    fpdfsdk/fpdf_text.cpp \
+    fpdfsdk/fpdf_transformpage.cpp \
+    fpdfsdk/fpdf_view.cpp \
+\
+    fpdfsdk/cfx_systemhandler.cpp \
+    fpdfsdk/cpdf_annotcontext.cpp \
+    fpdfsdk/cpdfsdk_actionhandler.cpp \
+    fpdfsdk/cpdfsdk_annot.cpp \
+    fpdfsdk/cpdfsdk_annothandlermgr.cpp \
+    fpdfsdk/cpdfsdk_annotiteration.cpp \
+    fpdfsdk/cpdfsdk_annotiterator.cpp \
+    fpdfsdk/cpdfsdk_baannot.cpp \
+    fpdfsdk/cpdfsdk_baannothandler.cpp \
+    fpdfsdk/cpdfsdk_customaccess.cpp \
+    fpdfsdk/cpdfsdk_fieldaction.cpp \
+    fpdfsdk/cpdfsdk_filewriteadapter.cpp \
+    fpdfsdk/cpdfsdk_formfillenvironment.cpp \
+    fpdfsdk/cpdfsdk_helpers.cpp \
+    fpdfsdk/cpdfsdk_interactiveform.cpp \
+    fpdfsdk/cpdfsdk_pageview.cpp \
+    fpdfsdk/cpdfsdk_widget.cpp \
+    fpdfsdk/cpdfsdk_widgethandler.cpp \
+    fpdfsdk/ipdfsdk_pauseadapter.cpp \
+\
+    fpdfsdk/formfiller/cba_fontmap.cpp \
+    fpdfsdk/formfiller/cffl_button.cpp \
+    fpdfsdk/formfiller/cffl_checkbox.cpp \
+    fpdfsdk/formfiller/cffl_combobox.cpp \
+    fpdfsdk/formfiller/cffl_formfiller.cpp \
+    fpdfsdk/formfiller/cffl_interactiveformfiller.cpp \
+    fpdfsdk/formfiller/cffl_listbox.cpp \
+    fpdfsdk/formfiller/cffl_pushbutton.cpp \
+    fpdfsdk/formfiller/cffl_radiobutton.cpp \
+    fpdfsdk/formfiller/cffl_textfield.cpp \
+    fpdfsdk/formfiller/cffl_textobject.cpp \
+\
+    fpdfsdk/pwl/cpwl_appstream.cpp \
+    fpdfsdk/pwl/cpwl_button.cpp \
+    fpdfsdk/pwl/cpwl_caret.cpp \
+    fpdfsdk/pwl/cpwl_combo_box.cpp \
+    fpdfsdk/pwl/cpwl_edit.cpp \
+    fpdfsdk/pwl/cpwl_edit_ctrl.cpp \
+    fpdfsdk/pwl/cpwl_edit_impl.cpp \
+    fpdfsdk/pwl/cpwl_icon.cpp \
+    fpdfsdk/pwl/cpwl_list_box.cpp \
+    fpdfsdk/pwl/cpwl_list_impl.cpp \
+    fpdfsdk/pwl/cpwl_scroll_bar.cpp \
+    fpdfsdk/pwl/cpwl_special_button.cpp \
+    fpdfsdk/pwl/cpwl_timer.cpp \
+    fpdfsdk/pwl/cpwl_timer_handler.cpp \
+    fpdfsdk/pwl/cpwl_wnd.cpp
+
+PDFIUM_CORE_FDRM_SRC := \
+     core/fdrm/fx_crypt.cpp \
+     core/fdrm/fx_crypt_aes.cpp \
+     core/fdrm/fx_crypt_sha.cpp
+
+PDFIUM_CORE_FPDFAPI_CMAPS_SRC := \
+    core/fpdfapi/cmaps/CNS1/Adobe-CNS1-UCS2_5.cpp \
+    core/fpdfapi/cmaps/CNS1/B5pc-H_0.cpp \
+    core/fpdfapi/cmaps/CNS1/B5pc-V_0.cpp \
+    core/fpdfapi/cmaps/CNS1/CNS-EUC-H_0.cpp \
+    core/fpdfapi/cmaps/CNS1/CNS-EUC-V_0.cpp \
+    core/fpdfapi/cmaps/CNS1/ETen-B5-H_0.cpp \
+    core/fpdfapi/cmaps/CNS1/ETen-B5-V_0.cpp \
+    core/fpdfapi/cmaps/CNS1/ETenms-B5-H_0.cpp \
+    core/fpdfapi/cmaps/CNS1/ETenms-B5-V_0.cpp \
+    core/fpdfapi/cmaps/CNS1/HKscs-B5-H_5.cpp \
+    core/fpdfapi/cmaps/CNS1/HKscs-B5-V_5.cpp \
+    core/fpdfapi/cmaps/CNS1/UniCNS-UCS2-H_3.cpp \
+    core/fpdfapi/cmaps/CNS1/UniCNS-UCS2-V_3.cpp \
+    core/fpdfapi/cmaps/CNS1/UniCNS-UTF16-H_0.cpp \
+    core/fpdfapi/cmaps/CNS1/cmaps_cns1.cpp \
+    core/fpdfapi/cmaps/GB1/Adobe-GB1-UCS2_5.cpp \
+    core/fpdfapi/cmaps/GB1/GB-EUC-H_0.cpp \
+    core/fpdfapi/cmaps/GB1/GB-EUC-V_0.cpp \
+    core/fpdfapi/cmaps/GB1/GBK-EUC-H_2.cpp \
+    core/fpdfapi/cmaps/GB1/GBK-EUC-V_2.cpp \
+    core/fpdfapi/cmaps/GB1/GBK2K-H_5.cpp \
+    core/fpdfapi/cmaps/GB1/GBK2K-V_5.cpp \
+    core/fpdfapi/cmaps/GB1/GBKp-EUC-H_2.cpp \
+    core/fpdfapi/cmaps/GB1/GBKp-EUC-V_2.cpp \
+    core/fpdfapi/cmaps/GB1/GBpc-EUC-H_0.cpp \
+    core/fpdfapi/cmaps/GB1/GBpc-EUC-V_0.cpp \
+    core/fpdfapi/cmaps/GB1/UniGB-UCS2-H_4.cpp \
+    core/fpdfapi/cmaps/GB1/UniGB-UCS2-V_4.cpp \
+    core/fpdfapi/cmaps/GB1/cmaps_gb1.cpp \
+    core/fpdfapi/cmaps/Japan1/83pv-RKSJ-H_1.cpp \
+    core/fpdfapi/cmaps/Japan1/90ms-RKSJ-H_2.cpp \
+    core/fpdfapi/cmaps/Japan1/90ms-RKSJ-V_2.cpp \
+    core/fpdfapi/cmaps/Japan1/90msp-RKSJ-H_2.cpp \
+    core/fpdfapi/cmaps/Japan1/90msp-RKSJ-V_2.cpp \
+    core/fpdfapi/cmaps/Japan1/90pv-RKSJ-H_1.cpp \
+    core/fpdfapi/cmaps/Japan1/Add-RKSJ-H_1.cpp \
+    core/fpdfapi/cmaps/Japan1/Add-RKSJ-V_1.cpp \
+    core/fpdfapi/cmaps/Japan1/Adobe-Japan1-UCS2_4.cpp \
+    core/fpdfapi/cmaps/Japan1/EUC-H_1.cpp \
+    core/fpdfapi/cmaps/Japan1/EUC-V_1.cpp \
+    core/fpdfapi/cmaps/Japan1/Ext-RKSJ-H_2.cpp \
+    core/fpdfapi/cmaps/Japan1/Ext-RKSJ-V_2.cpp \
+    core/fpdfapi/cmaps/Japan1/H_1.cpp \
+    core/fpdfapi/cmaps/Japan1/UniJIS-UCS2-HW-H_4.cpp \
+    core/fpdfapi/cmaps/Japan1/UniJIS-UCS2-HW-V_4.cpp \
+    core/fpdfapi/cmaps/Japan1/UniJIS-UCS2-H_4.cpp \
+    core/fpdfapi/cmaps/Japan1/UniJIS-UCS2-V_4.cpp \
+    core/fpdfapi/cmaps/Japan1/V_1.cpp \
+    core/fpdfapi/cmaps/Japan1/cmaps_japan1.cpp \
+    core/fpdfapi/cmaps/Korea1/Adobe-Korea1-UCS2_2.cpp \
+    core/fpdfapi/cmaps/Korea1/KSC-EUC-H_0.cpp \
+    core/fpdfapi/cmaps/Korea1/KSC-EUC-V_0.cpp \
+    core/fpdfapi/cmaps/Korea1/KSCms-UHC-HW-H_1.cpp \
+    core/fpdfapi/cmaps/Korea1/KSCms-UHC-HW-V_1.cpp \
+    core/fpdfapi/cmaps/Korea1/KSCms-UHC-H_1.cpp \
+    core/fpdfapi/cmaps/Korea1/KSCms-UHC-V_1.cpp \
+    core/fpdfapi/cmaps/Korea1/KSCpc-EUC-H_0.cpp \
+    core/fpdfapi/cmaps/Korea1/UniKS-UCS2-H_1.cpp \
+    core/fpdfapi/cmaps/Korea1/UniKS-UCS2-V_1.cpp \
+    core/fpdfapi/cmaps/Korea1/UniKS-UTF16-H_0.cpp \
+    core/fpdfapi/cmaps/Korea1/cmaps_korea1.cpp \
+    core/fpdfapi/cmaps/fpdf_cmaps.cpp
+
+PDFIUM_CORE_FPDFAPI_EDIT_SRC := \
+     core/fpdfapi/edit/cpdf_creator.cpp \
+     core/fpdfapi/edit/cpdf_encryptor.cpp \
+     core/fpdfapi/edit/cpdf_flateencoder.cpp \
+     core/fpdfapi/edit/cpdf_pagecontentgenerator.cpp \
+     core/fpdfapi/edit/cpdf_pagecontentmanager.cpp \
+     core/fpdfapi/edit/cpdf_stringarchivestream.cpp
+
+PDFIUM_CORE_FPDFAPI_FONT_SRC := \
+    core/fpdfapi/font/cfx_cttgsubtable.cpp \
+    core/fpdfapi/font/cfx_stockfontarray.cpp \
+    core/fpdfapi/font/cpdf_cid2unicodemap.cpp \
+    core/fpdfapi/font/cpdf_cidfont.cpp \
+    core/fpdfapi/font/cpdf_cmap.cpp \
+    core/fpdfapi/font/cpdf_cmapmanager.cpp \
+    core/fpdfapi/font/cpdf_cmapparser.cpp \
+    core/fpdfapi/font/cpdf_font.cpp \
+    core/fpdfapi/font/cpdf_fontencoding.cpp \
+    core/fpdfapi/font/cpdf_fontglobals.cpp \
+    core/fpdfapi/font/cpdf_simplefont.cpp \
+    core/fpdfapi/font/cpdf_tounicodemap.cpp \
+    core/fpdfapi/font/cpdf_truetypefont.cpp \
+    core/fpdfapi/font/cpdf_type1font.cpp \
+    core/fpdfapi/font/cpdf_type3char.cpp \
+    core/fpdfapi/font/cpdf_type3font.cpp
+
+PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
+    core/fpdfapi/cpdf_modulemgr.cpp \
+    core/fpdfapi/cpdf_pagerendercontext.cpp \
+    core/fpdfapi/page/cpdf_allstates.cpp \
+    core/fpdfapi/page/cpdf_clippath.cpp \
+    core/fpdfapi/page/cpdf_color.cpp \
+    core/fpdfapi/page/cpdf_colorspace.cpp \
+    core/fpdfapi/page/cpdf_colorstate.cpp \
+    core/fpdfapi/page/cpdf_contentmarkitem.cpp \
+    core/fpdfapi/page/cpdf_contentmarks.cpp \
+    core/fpdfapi/page/cpdf_contentparser.cpp \
+    core/fpdfapi/page/cpdf_devicecs.cpp \
+    core/fpdfapi/page/cpdf_docpagedata.cpp \
+    core/fpdfapi/page/cpdf_expintfunc.cpp \
+    core/fpdfapi/page/cpdf_form.cpp \
+    core/fpdfapi/page/cpdf_formobject.cpp \
+    core/fpdfapi/page/cpdf_function.cpp \
+    core/fpdfapi/page/cpdf_generalstate.cpp \
+    core/fpdfapi/page/cpdf_graphicstates.cpp \
+    core/fpdfapi/page/cpdf_iccprofile.cpp \
+    core/fpdfapi/page/cpdf_image.cpp \
+    core/fpdfapi/page/cpdf_imageobject.cpp \
+    core/fpdfapi/page/cpdf_meshstream.cpp \
+    core/fpdfapi/page/cpdf_page.cpp \
+    core/fpdfapi/page/cpdf_pagemodule.cpp \
+    core/fpdfapi/page/cpdf_pageobject.cpp \
+    core/fpdfapi/page/cpdf_pageobjectholder.cpp \
+    core/fpdfapi/page/cpdf_pageobjectlist.cpp \
+    core/fpdfapi/page/cpdf_path.cpp \
+    core/fpdfapi/page/cpdf_pathobject.cpp \
+    core/fpdfapi/page/cpdf_pattern.cpp \
+    core/fpdfapi/page/cpdf_patterncs.cpp \
+    core/fpdfapi/page/cpdf_psengine.cpp \
+    core/fpdfapi/page/cpdf_psfunc.cpp \
+    core/fpdfapi/page/cpdf_sampledfunc.cpp \
+    core/fpdfapi/page/cpdf_shadingobject.cpp \
+    core/fpdfapi/page/cpdf_shadingpattern.cpp \
+    core/fpdfapi/page/cpdf_stitchfunc.cpp \
+    core/fpdfapi/page/cpdf_streamcontentparser.cpp \
+    core/fpdfapi/page/cpdf_streamparser.cpp \
+    core/fpdfapi/page/cpdf_textobject.cpp \
+    core/fpdfapi/page/cpdf_textstate.cpp \
+    core/fpdfapi/page/cpdf_tilingpattern.cpp
+
+PDFIUM_CORE_FPDFAPI_PARSER_SRC := \
+    core/fpdfapi/parser/cfdf_document.cpp \
+    core/fpdfapi/parser/cpdf_array.cpp \
+    core/fpdfapi/parser/cpdf_boolean.cpp \
+    core/fpdfapi/parser/cpdf_cross_ref_avail.cpp \
+    core/fpdfapi/parser/cpdf_cross_ref_table.cpp \
+    core/fpdfapi/parser/cpdf_crypto_handler.cpp \
+    core/fpdfapi/parser/cpdf_data_avail.cpp \
+    core/fpdfapi/parser/cpdf_dictionary.cpp \
+    core/fpdfapi/parser/cpdf_document.cpp \
+    core/fpdfapi/parser/cpdf_hint_tables.cpp \
+    core/fpdfapi/parser/cpdf_indirect_object_holder.cpp \
+    core/fpdfapi/parser/cpdf_linearized_header.cpp \
+    core/fpdfapi/parser/cpdf_name.cpp \
+    core/fpdfapi/parser/cpdf_null.cpp \
+    core/fpdfapi/parser/cpdf_number.cpp \
+    core/fpdfapi/parser/cpdf_object.cpp \
+    core/fpdfapi/parser/cpdf_object_avail.cpp \
+    core/fpdfapi/parser/cpdf_object_stream.cpp \
+    core/fpdfapi/parser/cpdf_object_walker.cpp \
+    core/fpdfapi/parser/cpdf_page_object_avail.cpp \
+    core/fpdfapi/parser/cpdf_parser.cpp \
+    core/fpdfapi/parser/cpdf_read_validator.cpp \
+    core/fpdfapi/parser/cpdf_reference.cpp \
+    core/fpdfapi/parser/cpdf_security_handler.cpp \
+    core/fpdfapi/parser/cpdf_simple_parser.cpp \
+    core/fpdfapi/parser/cpdf_stream.cpp \
+    core/fpdfapi/parser/cpdf_stream_acc.cpp \
+    core/fpdfapi/parser/cpdf_string.cpp \
+    core/fpdfapi/parser/cpdf_syntax_parser.cpp \
+    core/fpdfapi/parser/fpdf_parser_decode.cpp \
+    core/fpdfapi/parser/fpdf_parser_utility.cpp
+
+PDFIUM_CORE_FPDFAPI_RENDER_SRC := \
+    core/fpdfapi/render/cpdf_charposlist.cpp \
+    core/fpdfapi/render/cpdf_devicebuffer.cpp \
+    core/fpdfapi/render/cpdf_dibbase.cpp \
+    core/fpdfapi/render/cpdf_dibtransferfunc.cpp \
+    core/fpdfapi/render/cpdf_docrenderdata.cpp \
+    core/fpdfapi/render/cpdf_imagecacheentry.cpp \
+    core/fpdfapi/render/cpdf_imageloader.cpp \
+    core/fpdfapi/render/cpdf_imagerenderer.cpp \
+    core/fpdfapi/render/cpdf_pagerendercache.cpp \
+    core/fpdfapi/render/cpdf_progressiverenderer.cpp \
+    core/fpdfapi/render/cpdf_rendercontext.cpp \
+    core/fpdfapi/render/cpdf_renderoptions.cpp \
+    core/fpdfapi/render/cpdf_renderstatus.cpp \
+    core/fpdfapi/render/cpdf_scaledrenderbuffer.cpp \
+    core/fpdfapi/render/cpdf_textrenderer.cpp \
+    core/fpdfapi/render/cpdf_transferfunc.cpp \
+    core/fpdfapi/render/cpdf_transparency.cpp \
+    core/fpdfapi/render/cpdf_type3cache.cpp \
+    core/fpdfapi/render/cpdf_type3glyphs.cpp
+
+PDFIUM_CORE_FPDFDOC_SRC := \
+    core/fpdfdoc/cline.cpp \
+    core/fpdfdoc/cpdf_aaction.cpp \
+    core/fpdfdoc/cpdf_action.cpp \
+    core/fpdfdoc/cpdf_actionfields.cpp \
+    core/fpdfdoc/cpdf_annot.cpp \
+    core/fpdfdoc/cpdf_annotlist.cpp \
+    core/fpdfdoc/cpdf_apsettings.cpp \
+    core/fpdfdoc/cpdf_bookmark.cpp \
+    core/fpdfdoc/cpdf_bookmarktree.cpp \
+    core/fpdfdoc/cpdf_defaultappearance.cpp \
+    core/fpdfdoc/cpdf_dest.cpp \
+    core/fpdfdoc/cpdf_docjsactions.cpp \
+    core/fpdfdoc/cpdf_filespec.cpp \
+    core/fpdfdoc/cpdf_formcontrol.cpp \
+    core/fpdfdoc/cpdf_formfield.cpp \
+    core/fpdfdoc/cpdf_iconfit.cpp \
+    core/fpdfdoc/cpdf_interactiveform.cpp \
+    core/fpdfdoc/cpdf_link.cpp \
+    core/fpdfdoc/cpdf_linklist.cpp \
+    core/fpdfdoc/cpdf_metadata.cpp \
+    core/fpdfdoc/cpdf_nametree.cpp \
+    core/fpdfdoc/cpdf_numbertree.cpp \
+    core/fpdfdoc/cpdf_occontext.cpp \
+    core/fpdfdoc/cpdf_pagelabel.cpp \
+    core/fpdfdoc/cpdf_structelement.cpp \
+    core/fpdfdoc/cpdf_structtree.cpp \
+    core/fpdfdoc/cpdf_variabletext.cpp \
+    core/fpdfdoc/cpdf_viewerpreferences.cpp \
+    core/fpdfdoc/cpvt_fontmap.cpp \
+    core/fpdfdoc/cpvt_generateap.cpp \
+    core/fpdfdoc/cpvt_wordinfo.cpp \
+    core/fpdfdoc/csection.cpp \
+    core/fpdfdoc/ctypeset.cpp
+
+PDFIUM_CORE_FPDFTEXT_SRC := \
+    core/fpdftext/cpdf_linkextract.cpp \
+    core/fpdftext/cpdf_textpage.cpp \
+    core/fpdftext/cpdf_textpagefind.cpp \
+    core/fpdftext/unicodenormalizationdata.cpp
+
+PDFIUM_CORE_FXCODEC_SRC := \
+    core/fxcodec/codec/ccodec_faxmodule.cpp \
+    core/fxcodec/codec/ccodec_flatemodule.cpp \
+    core/fxcodec/codec/ccodec_iccmodule.cpp \
+    core/fxcodec/codec/ccodec_jbig2module.cpp \
+    core/fxcodec/codec/ccodec_jpegmodule.cpp \
+    core/fxcodec/codec/ccodec_jpxmodule.cpp \
+    core/fxcodec/codec/ccodec_scanlinedecoder.cpp \
+    core/fxcodec/codec/cfx_codec_memory.cpp \
+    core/fxcodec/codec/fx_codec.cpp \
+    core/fxcodec/jbig2/JBig2_ArithDecoder.cpp \
+    core/fxcodec/jbig2/JBig2_ArithIntDecoder.cpp \
+    core/fxcodec/jbig2/JBig2_BitStream.cpp \
+    core/fxcodec/jbig2/JBig2_Context.cpp \
+    core/fxcodec/jbig2/JBig2_GrdProc.cpp \
+    core/fxcodec/jbig2/JBig2_GrrdProc.cpp \
+    core/fxcodec/jbig2/JBig2_HtrdProc.cpp \
+    core/fxcodec/jbig2/JBig2_HuffmanDecoder.cpp \
+    core/fxcodec/jbig2/JBig2_HuffmanTable.cpp \
+    core/fxcodec/jbig2/JBig2_Image.cpp \
+    core/fxcodec/jbig2/JBig2_PatternDict.cpp \
+    core/fxcodec/jbig2/JBig2_PddProc.cpp \
+    core/fxcodec/jbig2/JBig2_SddProc.cpp \
+    core/fxcodec/jbig2/JBig2_Segment.cpp \
+    core/fxcodec/jbig2/JBig2_SymbolDict.cpp \
+    core/fxcodec/jbig2/JBig2_TrdProc.cpp
+
+PDFIUM_CORE_FXCRT_SRC := \
+    core/fxcrt/bytestring.cpp \
+    core/fxcrt/cfx_binarybuf.cpp \
+    core/fxcrt/cfx_bitstream.cpp \
+    core/fxcrt/cfx_datetime.cpp \
+    core/fxcrt/cfx_memorystream.cpp \
+    core/fxcrt/cfx_readonlymemorystream.cpp \
+    core/fxcrt/cfx_seekablestreamproxy.cpp \
+    core/fxcrt/cfx_utf8decoder.cpp \
+    core/fxcrt/cfx_utf8encoder.cpp \
+    core/fxcrt/cfx_widetextbuf.cpp \
+    core/fxcrt/fx_bidi.cpp \
+    core/fxcrt/fx_codepage.cpp \
+    core/fxcrt/fx_coordinates.cpp \
+    core/fxcrt/fx_extension.cpp \
+    core/fxcrt/fx_memory.cpp \
+    core/fxcrt/fx_number.cpp \
+    core/fxcrt/fx_random.cpp \
+    core/fxcrt/fx_stream.cpp \
+    core/fxcrt/fx_string.cpp \
+    core/fxcrt/fx_system.cpp \
+    core/fxcrt/fx_ucddata.cpp \
+    core/fxcrt/fx_unicode.cpp \
+    core/fxcrt/widestring.cpp \
+    core/fxcrt/xml/cfx_xmlchardata.cpp \
+    core/fxcrt/xml/cfx_xmldocument.cpp \
+    core/fxcrt/xml/cfx_xmlelement.cpp \
+    core/fxcrt/xml/cfx_xmlinstruction.cpp \
+    core/fxcrt/xml/cfx_xmlnode.cpp \
+    core/fxcrt/xml/cfx_xmlparser.cpp \
+    core/fxcrt/xml/cfx_xmltext.cpp
+
+ifeq ($(OS),Unix)
+  PDFIUM_CORE_FXCRT_SRC += core/fxcrt/cfx_fileaccess_posix.cpp
+else ifeq ($(OS),MACOS)
+  PDFIUM_CORE_FXCRT_SRC += core/fxcrt/cfx_fileaccess_posix.cpp
+else
+  PDFIUM_CORE_FXCRT_SRC += core/fxcrt/cfx_fileaccess_windows.cpp
+endif
+
+PDFIUM_CORE_FXGE_SRC := \
+    core/fxge/cfx_cliprgn.cpp \
+    core/fxge/cfx_color.cpp \
+    core/fxge/cfx_facecache.cpp \
+    core/fxge/cfx_folderfontinfo.cpp \
+    core/fxge/cfx_font.cpp \
+    core/fxge/cfx_fontcache.cpp \
+    core/fxge/cfx_fontmapper.cpp \
+    core/fxge/cfx_fontmgr.cpp \
+    core/fxge/cfx_gemodule.cpp \
+    core/fxge/cfx_graphstate.cpp \
+    core/fxge/cfx_graphstatedata.cpp \
+    core/fxge/cfx_pathdata.cpp \
+    core/fxge/cfx_renderdevice.cpp \
+    core/fxge/cfx_substfont.cpp \
+    core/fxge/cfx_unicodeencoding.cpp \
+    core/fxge/cttfontdesc.cpp \
+    core/fxge/agg/fx_agg_driver.cpp \
+    core/fxge/dib/cfx_bitmapcomposer.cpp \
+    core/fxge/dib/cfx_bitmapstorer.cpp \
+    core/fxge/dib/cfx_dibbase.cpp \
+    core/fxge/dib/cfx_dibitmap.cpp \
+    core/fxge/dib/cfx_filtereddib.cpp \
+    core/fxge/dib/cfx_imagerenderer.cpp \
+    core/fxge/dib/cfx_imagestretcher.cpp \
+    core/fxge/dib/cfx_imagetransformer.cpp \
+    core/fxge/dib/cfx_scanlinecompositor.cpp \
+    core/fxge/dib/cstretchengine.cpp \
+    core/fxge/dib/fx_dib_main.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitDingbats.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitFixed.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitFixedBold.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitFixedBoldItalic.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitFixedItalic.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSans.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSansBold.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSansBoldItalic.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSansItalic.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSansMM.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSerif.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSerifBold.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSerifBoldItalic.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSerifItalic.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSerifMM.cpp \
+    core/fxge/fontdata/chromefontdata/FoxitSymbol.cpp \
+    core/fxge/freetype/fx_freetype.cpp \
+    core/fxge/fx_font.cpp \
+    core/fxge/fx_ge_fontmap.cpp \
+    core/fxge/fx_ge_text.cpp \
+    core/fxge/renderdevicedriver_iface.cpp
+
+ifeq ($(OS),Unix)
+  PDFIUM_CORE_FXGE_SRC += core/fxge/fx_ge_linux.cpp
+else ifeq ($(OS),MACOS)
+  PDFIUM_CORE_FXGE_SRC += \
+    core/fxge/apple/fx_apple_platform.cpp \
+    core/fxge/apple/fx_mac_imp.cpp \
+    core/fxge/apple/fx_quartz_device.cpp
+else
+  PDFIUM_CORE_FXGE_SRC += \
+    core/fxge/dib/cfx_dibextractor.cpp \
+    core/fxge/win32/cfx_psrenderer.cpp \
+    core/fxge/win32/cpsoutput.cpp \
+    core/fxge/win32/fx_win32_device.cpp \
+    core/fxge/win32/fx_win32_dib.cpp \
+    core/fxge/win32/fx_win32_gdipext.cpp \
+    core/fxge/win32/fx_win32_print.cpp
+endif
+
+PDFIUM_FXJS_SRC := \
+    fxjs/cjs_event_context_stub.cpp \
+    fxjs/cjs_runtimestub.cpp \
+    fxjs/ijs_runtime.cpp
+
+PDFIUM_THIRD_PARTY_AGG_SRC := \
+    third_party/agg23/agg_curves.cpp \
+    third_party/agg23/agg_path_storage.cpp \
+    third_party/agg23/agg_rasterizer_scanline_aa.cpp \
+    third_party/agg23/agg_vcgen_dash.cpp \
+    third_party/agg23/agg_vcgen_stroke.cpp
+
+PDFIUM_THIRD_PARTY_BASE_SRC := \
+    third_party/base/allocator/partition_allocator/address_space_randomization.cc \
+    third_party/base/allocator/partition_allocator/oom_callback.cc \
+    third_party/base/allocator/partition_allocator/page_allocator.cc \
+    third_party/base/allocator/partition_allocator/partition_alloc.cc \
+    third_party/base/allocator/partition_allocator/partition_bucket.cc \
+    third_party/base/allocator/partition_allocator/partition_oom.cc \
+    third_party/base/allocator/partition_allocator/partition_page.cc \
+    third_party/base/allocator/partition_allocator/partition_root_base.cc \
+    third_party/base/allocator/partition_allocator/spin_lock.cc \
+    third_party/base/debug/alias.cc
+
+PDFIUM_THIRD_PARTY_SKIA_SARED_SRC := \
+    third_party/skia_shared/SkFloatToDecimal.cpp
+
+PDFIUM_SRC := \
+$(PDFIUM_FPDFSDK_SRC) \
+$(PDFIUM_CORE_FDRM_SRC) \
+$(PDFIUM_CORE_FPDFAPI_CMAPS_SRC) \
+$(PDFIUM_CORE_FPDFAPI_EDIT_SRC) \
+$(PDFIUM_CORE_FPDFAPI_FONT_SRC) \
+$(PDFIUM_CORE_FPDFAPI_PAGE_SRC) \
+$(PDFIUM_CORE_FPDFAPI_PARSER_SRC) \
+$(PDFIUM_CORE_FPDFAPI_RENDER_SRC) \
+$(PDFIUM_CORE_FPDFDOC_SRC) \
+$(PDFIUM_CORE_FPDFTEXT_SRC) \
+$(PDFIUM_CORE_FXCODEC_SRC) \
+$(PDFIUM_CORE_FXCRT_SRC) \
+$(PDFIUM_CORE_FXGE_SRC) \
+$(PDFIUM_FXJS_SRC) \
+$(PDFIUM_THIRD_PARTY_AGG_SRC) \
+$(PDFIUM_THIRD_PARTY_SKIA_SARED_SRC)
+
+
+PDFIUM_OBJ := $(PDFIUM_SRC:%.cpp=$(OUT)/%.o)
+PDFIUM_OBJ += $(PDFIUM_THIRD_PARTY_BASE_SRC:%.cc=$(OUT)/%.o)
+
+# Rules
+
+
+all: $(OUT) $(PDFIUM_LIB)
+
+$(OUT): $(OUT)/fpdfsdk/formfiller $(OUT)/fpdfsdk/pwl $(OUT)/core/fdrm $(OUT)/core/fpdfapi/cmaps $(OUT)/core/fpdfapi/cmaps/CNS1 $(OUT)/core/fpdfapi/cmaps/GB1 $(OUT)/core/fpdfapi/cmaps/Japan1 $(OUT)/core/fpdfapi/cmaps/Korea1 $(OUT)/core/fpdfapi/edit $(OUT)/core/fpdfapi/font $(OUT)/core/fpdfapi/page $(OUT)/core/fpdfapi/parser $(OUT)/core/fpdfapi/render $(OUT)/core/fpdfdoc $(OUT)/core/fpdftext $(OUT)/core/fxcodec/codec $(OUT)/core/fxcodec/jbig2 $(OUT)/core/fxcrt/xml $(OUT)/core/fxge/agg $(OUT)/core/fxge/apple $(OUT)/core/fxge/dib $(OUT)/core/fxge/fontdata/chromefontdata $(OUT)/core/fxge/freetype $(OUT)/core/fxge/win32 $(OUT)/fxjs $(OUT)/third_party/base/allocator/partition_allocator $(OUT)/third_party/agg23 $(OUT)/third_party/base/debug $(OUT)/third_party/skia_shared
+	$(CMD_MKDIRP) $@
+
+$(OUT)/fpdfsdk/formfiller:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/fpdfsdk/pwl:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fdrm:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/cmaps:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/cmaps/CNS1:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/cmaps/GB1:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/cmaps/Japan1:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/cmaps/Korea1:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/edit:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/font:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/page:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/parser:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfapi/render:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdfdoc:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fpdftext:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/codec:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/jbig2:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcrt/xml:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxge/agg:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxge/apple:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxge/dib:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxge/fontdata/chromefontdata:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxge/freetype:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxge/win32:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/fxjs:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/third_party/agg23:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/third_party/base/allocator/partition_allocator:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/third_party/base/debug:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/third_party/skia_shared:
+	$(CMD_MKDIRP) $@
+
+$(PDFIUM_LIB): $(PDFIUM_OBJ)
+	$(CMD_LINK)
+
+$(OUT)/fpdfsdk/%.o: fpdfsdk/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/fpdfsdk/formfiller/%.o: fpdfsdk/formfiller/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/fpdfsdk/pwl/%.o: fpdfsdk/pwl/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fdrm/%.o: core/fdrm/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/%.o: core/fpdfapi/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/cmaps/%.o: core/fpdfapi/cmaps/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/cmaps/CNS1/%.o: core/fpdfapi/cmaps/CNS1/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/cmaps/GB1/%.o: core/fpdfapi/cmaps/GB1/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/cmaps/Japan1/%.o: core/fpdfapi/cmaps/Japan1/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/cmaps/Korea1/%.o: core/fpdfapi/cmaps/Korea1/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/edit/%.o: core/fpdfapi/edit/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/font/%.o: core/fpdfapi/font/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/page/%.o: core/fpdfapi/page/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/parser/%.o: core/fpdfapi/parser/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfapi/render/%.o: core/fpdfapi/render/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdfdoc/%.o: core/fpdfdoc/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fpdftext/%.o: core/fpdftext/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/codec/%.o: core/fxcodec/codec/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/jbig2/%.o: core/fxcodec/jbig2/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcrt/%.o: core/fxcrt/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/%.o: core/fxge/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/agg/%.o: core/fxge/agg/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/apple/%.o: core/fxge/apple/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/dib/%.o: core/fxge/dib/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/fontdata/chromefontdata/%.o: core/fxge/fontdata/chromefontdata/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/freetype/%.o: core/fxge/freetype/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxge/win32/%.o: core/fxge/win32/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/fxjs/%.o: fxjs/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/third_party/agg23/%.o: third_party/agg23/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/third_party/base/allocator/partition_allocator/%.o: third_party/base/allocator/partition_allocator/%.cc
+	$(CMD_CXX)
+
+$(OUT)/third_party/base/debug/%.o: third_party/base/debug/%.cc
+	$(CMD_CXX)
+
+$(OUT)/third_party/skia_shared/%.o: third_party/skia_shared/%.cpp
+	$(CMD_CXX)
+
+$(DESTDIR)$(bindir):
+ifeq ($(OS),Windows)
+	$(INSTALL) -d $(DESTDIR)$(bindir)
+endif
+
+$(DESTDIR)$(libdir):
+ifneq ($(OS),Windows)
+	$(INSTALL) -d $(DESTDIR)$(libdir)
+endif
+
+$(DESTDIR)$(incdir)/cpp:
+	$(INSTALL) -d $(DESTDIR)$(incdir)/cpp
+
+install: $(PDFIUM_LIB) $(DESTDIR)$(bindir) $(DESTDIR)$(libdir) $(DESTDIR)$(incdir)/cpp
+ifeq ($(OS),Windows)
+	$(INSTALL_LIB) $(PDFIUM_LIB) $(DESTDIR)$(bindir)
+	$(INSTALL_LIB) $(PDFIUM_IMPLIB) $(DESTDIR)$(libdir)
+else
+	$(INSTALL_LIB) $(PDFIUM_LIB) $(DESTDIR)$(libdir)
+endif
+	$(INSTALL_HDR) $(foreach hdr, $(PDFIUM_PUBLIC_HDR), public/$(hdr)) $(DESTDIR)$(incdir)
+	$(INSTALL_HDR) $(foreach hdr, $(PDFIUM_PUBLIC_CPP_HDR), public/cpp/$(hdr)) $(DESTDIR)$(incdir)/cpp
+
+uninstall: $(PDFIUM_LIB)
+ifeq ($(OS),Windows)
+	$(CMD_RM) $(DESTDIR)$(bindir)/$(notdir $(PDFIUM_LIB))
+	$(CMD_RM) $(DESTDIR)$(libdir)/$(notdir $(PDFIUM_IMPLIB))
+else
+	$(CMD_RM) $(DESTDIR)$(libdir)/$(notdir $(PDFIUM_LIB))
+endif
+	$(CMD_RM) $(foreach hdr, $(PDFIUM_PUBLIC_HDR), $(DESTDIR)$(incdir)/$(hdr))
+	$(CMD_RM) $(foreach hdr, $(PDFIUM_PUBLIC_CPP_HDR), $(DESTDIR)$(incdir)/cpp/$(hdr))
+
+clean:
+	$(CMD_RM) $(OUT)
+
+.PHONY: all clean install uninstall help status
