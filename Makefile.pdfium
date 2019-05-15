@@ -292,9 +292,9 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/pwl/cpwl_wnd.cpp
 
 PDFIUM_CORE_FDRM_SRC := \
-     core/fdrm/fx_crypt.cpp \
-     core/fdrm/fx_crypt_aes.cpp \
-     core/fdrm/fx_crypt_sha.cpp
+    core/fdrm/fx_crypt.cpp \
+    core/fdrm/fx_crypt_aes.cpp \
+    core/fdrm/fx_crypt_sha.cpp
 
 PDFIUM_CORE_FPDFAPI_CMAPS_SRC := \
     core/fpdfapi/cmaps/CNS1/Adobe-CNS1-UCS2_5.cpp \
@@ -361,12 +361,10 @@ PDFIUM_CORE_FPDFAPI_CMAPS_SRC := \
     core/fpdfapi/cmaps/fpdf_cmaps.cpp
 
 PDFIUM_CORE_FPDFAPI_EDIT_SRC := \
-     core/fpdfapi/edit/cpdf_creator.cpp \
-     core/fpdfapi/edit/cpdf_encryptor.cpp \
-     core/fpdfapi/edit/cpdf_flateencoder.cpp \
-     core/fpdfapi/edit/cpdf_pagecontentgenerator.cpp \
-     core/fpdfapi/edit/cpdf_pagecontentmanager.cpp \
-     core/fpdfapi/edit/cpdf_stringarchivestream.cpp
+    core/fpdfapi/edit/cpdf_creator.cpp \
+    core/fpdfapi/edit/cpdf_pagecontentgenerator.cpp \
+    core/fpdfapi/edit/cpdf_pagecontentmanager.cpp \
+    core/fpdfapi/edit/cpdf_stringarchivestream.cpp
 
 PDFIUM_CORE_FPDFAPI_FONT_SRC := \
     core/fpdfapi/font/cfx_cttgsubtable.cpp \
@@ -413,7 +411,6 @@ PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/page/cpdf_pagemodule.cpp \
     core/fpdfapi/page/cpdf_pageobject.cpp \
     core/fpdfapi/page/cpdf_pageobjectholder.cpp \
-    core/fpdfapi/page/cpdf_pageobjectlist.cpp \
     core/fpdfapi/page/cpdf_path.cpp \
     core/fpdfapi/page/cpdf_pathobject.cpp \
     core/fpdfapi/page/cpdf_pattern.cpp \
@@ -440,6 +437,8 @@ PDFIUM_CORE_FPDFAPI_PARSER_SRC := \
     core/fpdfapi/parser/cpdf_data_avail.cpp \
     core/fpdfapi/parser/cpdf_dictionary.cpp \
     core/fpdfapi/parser/cpdf_document.cpp \
+    core/fpdfapi/parser/cpdf_encryptor.cpp \
+    core/fpdfapi/parser/cpdf_flateencoder.cpp \
     core/fpdfapi/parser/cpdf_hint_tables.cpp \
     core/fpdfapi/parser/cpdf_indirect_object_holder.cpp \
     core/fpdfapi/parser/cpdf_linearized_header.cpp \
@@ -573,7 +572,6 @@ PDFIUM_CORE_FXCRT_SRC := \
     core/fxcrt/fx_stream.cpp \
     core/fxcrt/fx_string.cpp \
     core/fxcrt/fx_system.cpp \
-    core/fxcrt/fx_ucddata.cpp \
     core/fxcrt/fx_unicode.cpp \
     core/fxcrt/widestring.cpp \
     core/fxcrt/xml/cfx_xmlchardata.cpp \
@@ -640,8 +638,8 @@ PDFIUM_CORE_FXGE_SRC := \
     core/fxge/freetype/fx_freetype.cpp \
     core/fxge/fx_font.cpp \
     core/fxge/fx_ge_fontmap.cpp \
-    core/fxge/fx_ge_text.cpp \
-    core/fxge/renderdevicedriver_iface.cpp
+    core/fxge/renderdevicedriver_iface.cpp \
+    core/fxge/text_glyph_pos.cpp
 
 ifeq ($(OS),Unix)
   PDFIUM_CORE_FXGE_SRC += core/fxge/fx_ge_linux.cpp
@@ -685,6 +683,13 @@ PDFIUM_THIRD_PARTY_BASE_SRC := \
     third_party/base/allocator/partition_allocator/spin_lock.cc \
     third_party/base/debug/alias.cc
 
+ifeq ($(OS),Unix)
+else ifeq ($(OS),MACOS)
+else
+  PDFIUM_THIRD_PARTY_BASE_SRC += \
+    third_party/base/win/win_util.cc
+endif
+
 PDFIUM_THIRD_PARTY_SKIA_SARED_SRC := \
     third_party/skia_shared/SkFloatToDecimal.cpp
 
@@ -715,7 +720,7 @@ PDFIUM_OBJ += $(PDFIUM_THIRD_PARTY_BASE_SRC:%.cc=$(OUT)/%.o)
 
 all: $(OUT) $(PDFIUM_LIB)
 
-$(OUT): $(OUT)/fpdfsdk/formfiller $(OUT)/fpdfsdk/pwl $(OUT)/core/fdrm $(OUT)/core/fpdfapi/cmaps $(OUT)/core/fpdfapi/cmaps/CNS1 $(OUT)/core/fpdfapi/cmaps/GB1 $(OUT)/core/fpdfapi/cmaps/Japan1 $(OUT)/core/fpdfapi/cmaps/Korea1 $(OUT)/core/fpdfapi/edit $(OUT)/core/fpdfapi/font $(OUT)/core/fpdfapi/page $(OUT)/core/fpdfapi/parser $(OUT)/core/fpdfapi/render $(OUT)/core/fpdfdoc $(OUT)/core/fpdftext $(OUT)/core/fxcodec/codec $(OUT)/core/fxcodec/jbig2 $(OUT)/core/fxcrt/xml $(OUT)/core/fxge/agg $(OUT)/core/fxge/apple $(OUT)/core/fxge/dib $(OUT)/core/fxge/fontdata/chromefontdata $(OUT)/core/fxge/freetype $(OUT)/core/fxge/win32 $(OUT)/fxjs $(OUT)/third_party/base/allocator/partition_allocator $(OUT)/third_party/agg23 $(OUT)/third_party/base/debug $(OUT)/third_party/skia_shared
+$(OUT): $(OUT)/fpdfsdk/formfiller $(OUT)/fpdfsdk/pwl $(OUT)/core/fdrm $(OUT)/core/fpdfapi/cmaps $(OUT)/core/fpdfapi/cmaps/CNS1 $(OUT)/core/fpdfapi/cmaps/GB1 $(OUT)/core/fpdfapi/cmaps/Japan1 $(OUT)/core/fpdfapi/cmaps/Korea1 $(OUT)/core/fpdfapi/edit $(OUT)/core/fpdfapi/font $(OUT)/core/fpdfapi/page $(OUT)/core/fpdfapi/parser $(OUT)/core/fpdfapi/render $(OUT)/core/fpdfdoc $(OUT)/core/fpdftext $(OUT)/core/fxcodec/codec $(OUT)/core/fxcodec/jbig2 $(OUT)/core/fxcrt/xml $(OUT)/core/fxge/agg $(OUT)/core/fxge/apple $(OUT)/core/fxge/dib $(OUT)/core/fxge/fontdata/chromefontdata $(OUT)/core/fxge/freetype $(OUT)/core/fxge/win32 $(OUT)/fxjs $(OUT)/third_party/base/allocator/partition_allocator $(OUT)/third_party/agg23 $(OUT)/third_party/base/debug $(OUT)/third_party/base/win $(OUT)/third_party/skia_shared
 	$(CMD_MKDIRP) $@
 
 $(OUT)/fpdfsdk/formfiller:
@@ -800,6 +805,9 @@ $(OUT)/third_party/base/allocator/partition_allocator:
 	$(CMD_MKDIRP) $@
 
 $(OUT)/third_party/base/debug:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/third_party/base/win:
 	$(CMD_MKDIRP) $@
 
 $(OUT)/third_party/skia_shared:
@@ -899,6 +907,9 @@ $(OUT)/third_party/base/allocator/partition_allocator/%.o: third_party/base/allo
 	$(CMD_CXX)
 
 $(OUT)/third_party/base/debug/%.o: third_party/base/debug/%.cc
+	$(CMD_CXX)
+
+$(OUT)/third_party/base/win/%.o: third_party/base/win/%.cc
 	$(CMD_CXX)
 
 $(OUT)/third_party/skia_shared/%.o: third_party/skia_shared/%.cpp
