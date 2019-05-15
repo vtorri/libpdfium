@@ -12,3 +12,16 @@ git clone --recurse-submodules https://github.com/vtorri/libpdfium.git
 * mkdir build
 * cp ../build_config.h build
 * cp ../Makefile_pdfium .
+
+# Compilation and installation
+
+ * make -f Makefile_pdfium
+ * make -f Makefile_pdfium install
+ 
+ you can of course run 'make' in parallal mode
+ 
+ # Aditional rules
+ 
+  * 'make help' for the help
+  * 'make status' to know where the files will be installed, the arch, etc...
+  
