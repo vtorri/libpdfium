@@ -600,6 +600,7 @@ PDFIUM_CORE_FXGE_SRC := \
     core/fxge/cfx_fontmapper.cpp \
     core/fxge/cfx_fontmgr.cpp \
     core/fxge/cfx_gemodule.cpp \
+    core/fxge/cfx_glyphbitmap.cpp \
     core/fxge/cfx_graphstate.cpp \
     core/fxge/cfx_graphstatedata.cpp \
     core/fxge/cfx_pathdata.cpp \
@@ -639,6 +640,7 @@ PDFIUM_CORE_FXGE_SRC := \
     core/fxge/fx_font.cpp \
     core/fxge/fx_ge_fontmap.cpp \
     core/fxge/renderdevicedriver_iface.cpp \
+    core/fxge/scoped_font_transform.cpp \
     core/fxge/text_glyph_pos.cpp
 
 ifeq ($(OS),Unix)
