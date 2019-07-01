@@ -263,7 +263,6 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/cpdfsdk_widgethandler.cpp \
     fpdfsdk/ipdfsdk_pauseadapter.cpp \
 \
-    fpdfsdk/formfiller/cba_fontmap.cpp \
     fpdfsdk/formfiller/cffl_button.cpp \
     fpdfsdk/formfiller/cffl_checkbox.cpp \
     fpdfsdk/formfiller/cffl_combobox.cpp \
@@ -361,6 +360,7 @@ PDFIUM_CORE_FPDFAPI_CMAPS_SRC := \
     core/fpdfapi/cmaps/fpdf_cmaps.cpp
 
 PDFIUM_CORE_FPDFAPI_EDIT_SRC := \
+    core/fpdfapi/edit/cpdf_contentstream_write_utils.cpp \
     core/fpdfapi/edit/cpdf_creator.cpp \
     core/fpdfapi/edit/cpdf_pagecontentgenerator.cpp \
     core/fpdfapi/edit/cpdf_pagecontentmanager.cpp \
@@ -386,7 +386,6 @@ PDFIUM_CORE_FPDFAPI_FONT_SRC := \
 
 PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/cpdf_modulemgr.cpp \
-    core/fpdfapi/cpdf_pagerendercontext.cpp \
     core/fpdfapi/page/cpdf_allstates.cpp \
     core/fpdfapi/page/cpdf_clippath.cpp \
     core/fpdfapi/page/cpdf_color.cpp \
@@ -407,10 +406,12 @@ PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/page/cpdf_image.cpp \
     core/fpdfapi/page/cpdf_imageobject.cpp \
     core/fpdfapi/page/cpdf_meshstream.cpp \
+    core/fpdfapi/page/cpdf_occontext.cpp \
     core/fpdfapi/page/cpdf_page.cpp \
     core/fpdfapi/page/cpdf_pagemodule.cpp \
     core/fpdfapi/page/cpdf_pageobject.cpp \
     core/fpdfapi/page/cpdf_pageobjectholder.cpp \
+    core/fpdfapi/page/cpdf_pagerendercontext.cpp \
     core/fpdfapi/page/cpdf_path.cpp \
     core/fpdfapi/page/cpdf_pathobject.cpp \
     core/fpdfapi/page/cpdf_pattern.cpp \
@@ -425,7 +426,8 @@ PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/page/cpdf_streamparser.cpp \
     core/fpdfapi/page/cpdf_textobject.cpp \
     core/fpdfapi/page/cpdf_textstate.cpp \
-    core/fpdfapi/page/cpdf_tilingpattern.cpp
+    core/fpdfapi/page/cpdf_tilingpattern.cpp \
+    core/fpdfapi/page/cpdf_transparency.cpp
 
 PDFIUM_CORE_FPDFAPI_PARSER_SRC := \
     core/fpdfapi/parser/cfdf_document.cpp \
@@ -479,12 +481,12 @@ PDFIUM_CORE_FPDFAPI_RENDER_SRC := \
     core/fpdfapi/render/cpdf_scaledrenderbuffer.cpp \
     core/fpdfapi/render/cpdf_textrenderer.cpp \
     core/fpdfapi/render/cpdf_transferfunc.cpp \
-    core/fpdfapi/render/cpdf_transparency.cpp \
     core/fpdfapi/render/cpdf_type3cache.cpp \
     core/fpdfapi/render/cpdf_type3glyphs.cpp
 
 PDFIUM_CORE_FPDFDOC_SRC := \
     core/fpdfdoc/cline.cpp \
+    core/fpdfdoc/cba_fontmap.cpp \
     core/fpdfdoc/cpdf_aaction.cpp \
     core/fpdfdoc/cpdf_action.cpp \
     core/fpdfdoc/cpdf_actionfields.cpp \
@@ -493,6 +495,7 @@ PDFIUM_CORE_FPDFDOC_SRC := \
     core/fpdfdoc/cpdf_apsettings.cpp \
     core/fpdfdoc/cpdf_bookmark.cpp \
     core/fpdfdoc/cpdf_bookmarktree.cpp \
+    core/fpdfdoc/cpdf_color_utils.cpp \
     core/fpdfdoc/cpdf_defaultappearance.cpp \
     core/fpdfdoc/cpdf_dest.cpp \
     core/fpdfdoc/cpdf_docjsactions.cpp \
@@ -506,7 +509,6 @@ PDFIUM_CORE_FPDFDOC_SRC := \
     core/fpdfdoc/cpdf_metadata.cpp \
     core/fpdfdoc/cpdf_nametree.cpp \
     core/fpdfdoc/cpdf_numbertree.cpp \
-    core/fpdfdoc/cpdf_occontext.cpp \
     core/fpdfdoc/cpdf_pagelabel.cpp \
     core/fpdfdoc/cpdf_structelement.cpp \
     core/fpdfdoc/cpdf_structtree.cpp \
@@ -525,19 +527,18 @@ PDFIUM_CORE_FPDFTEXT_SRC := \
     core/fpdftext/unicodenormalizationdata.cpp
 
 PDFIUM_CORE_FXCODEC_SRC := \
-    core/fxcodec/codec/ccodec_faxmodule.cpp \
-    core/fxcodec/codec/ccodec_flatemodule.cpp \
-    core/fxcodec/codec/ccodec_iccmodule.cpp \
-    core/fxcodec/codec/ccodec_jbig2module.cpp \
-    core/fxcodec/codec/ccodec_jpegmodule.cpp \
-    core/fxcodec/codec/ccodec_jpxmodule.cpp \
-    core/fxcodec/codec/ccodec_scanlinedecoder.cpp \
-    core/fxcodec/codec/cfx_codec_memory.cpp \
-    core/fxcodec/codec/fx_codec.cpp \
+    core/fxcodec/cfx_codec_memory.cpp \
+    core/fxcodec/fx_codec.cpp \
+    core/fxcodec/scanlinedecoder.cpp \
+    core/fxcodec/basic/basicmodule.cpp \
+    core/fxcodec/fax/faxmodule.cpp \
+    core/fxcodec/flate/flatemodule.cpp \
+    core/fxcodec/icc/iccmodule.cpp \
     core/fxcodec/jbig2/JBig2_ArithDecoder.cpp \
     core/fxcodec/jbig2/JBig2_ArithIntDecoder.cpp \
     core/fxcodec/jbig2/JBig2_BitStream.cpp \
     core/fxcodec/jbig2/JBig2_Context.cpp \
+    core/fxcodec/jbig2/JBig2_DocumentContext.cpp \
     core/fxcodec/jbig2/JBig2_GrdProc.cpp \
     core/fxcodec/jbig2/JBig2_GrrdProc.cpp \
     core/fxcodec/jbig2/JBig2_HtrdProc.cpp \
@@ -549,7 +550,12 @@ PDFIUM_CORE_FXCODEC_SRC := \
     core/fxcodec/jbig2/JBig2_SddProc.cpp \
     core/fxcodec/jbig2/JBig2_Segment.cpp \
     core/fxcodec/jbig2/JBig2_SymbolDict.cpp \
-    core/fxcodec/jbig2/JBig2_TrdProc.cpp
+    core/fxcodec/jbig2/JBig2_TrdProc.cpp \
+    core/fxcodec/jbig2/jbig2module.cpp \
+    core/fxcodec/jpeg/jpegmodule.cpp \
+    core/fxcodec/jpx/cjpx_decoder.cpp \
+    core/fxcodec/jpx/jpx_decode_utils.cpp \
+    core/fxcodec/jpx/jpxmodule.cpp
 
 PDFIUM_CORE_FXCRT_SRC := \
     core/fxcrt/bytestring.cpp \
@@ -573,6 +579,7 @@ PDFIUM_CORE_FXCRT_SRC := \
     core/fxcrt/fx_string.cpp \
     core/fxcrt/fx_system.cpp \
     core/fxcrt/fx_unicode.cpp \
+    core/fxcrt/observed_ptr.cpp \
     core/fxcrt/widestring.cpp \
     core/fxcrt/xml/cfx_xmlchardata.cpp \
     core/fxcrt/xml/cfx_xmldocument.cpp \
@@ -593,8 +600,8 @@ endif
 PDFIUM_CORE_FXGE_SRC := \
     core/fxge/cfx_cliprgn.cpp \
     core/fxge/cfx_color.cpp \
-    core/fxge/cfx_facecache.cpp \
     core/fxge/cfx_folderfontinfo.cpp \
+    core/fxge/cfx_face.cpp \
     core/fxge/cfx_font.cpp \
     core/fxge/cfx_fontcache.cpp \
     core/fxge/cfx_fontmapper.cpp \
@@ -607,10 +614,10 @@ PDFIUM_CORE_FXGE_SRC := \
     core/fxge/cfx_renderdevice.cpp \
     core/fxge/cfx_substfont.cpp \
     core/fxge/cfx_unicodeencoding.cpp \
-    core/fxge/cttfontdesc.cpp \
     core/fxge/agg/fx_agg_driver.cpp \
     core/fxge/dib/cfx_bitmapcomposer.cpp \
     core/fxge/dib/cfx_bitmapstorer.cpp \
+    core/fxge/dib/cfx_cmyk_to_srgb.cpp \
     core/fxge/dib/cfx_dibbase.cpp \
     core/fxge/dib/cfx_dibitmap.cpp \
     core/fxge/dib/cfx_filtereddib.cpp \
@@ -637,10 +644,12 @@ PDFIUM_CORE_FXGE_SRC := \
     core/fxge/fontdata/chromefontdata/FoxitSerifMM.cpp \
     core/fxge/fontdata/chromefontdata/FoxitSymbol.cpp \
     core/fxge/freetype/fx_freetype.cpp \
+    core/fxge/cfx_glyphcache.cpp \
     core/fxge/fx_font.cpp \
     core/fxge/fx_ge_fontmap.cpp \
     core/fxge/renderdevicedriver_iface.cpp \
     core/fxge/scoped_font_transform.cpp \
+    core/fxge/text_char_pos.cpp \
     core/fxge/text_glyph_pos.cpp
 
 ifeq ($(OS),Unix)
@@ -722,7 +731,7 @@ PDFIUM_OBJ += $(PDFIUM_THIRD_PARTY_BASE_SRC:%.cc=$(OUT)/%.o)
 
 all: $(OUT) $(PDFIUM_LIB)
 
-$(OUT): $(OUT)/fpdfsdk/formfiller $(OUT)/fpdfsdk/pwl $(OUT)/core/fdrm $(OUT)/core/fpdfapi/cmaps $(OUT)/core/fpdfapi/cmaps/CNS1 $(OUT)/core/fpdfapi/cmaps/GB1 $(OUT)/core/fpdfapi/cmaps/Japan1 $(OUT)/core/fpdfapi/cmaps/Korea1 $(OUT)/core/fpdfapi/edit $(OUT)/core/fpdfapi/font $(OUT)/core/fpdfapi/page $(OUT)/core/fpdfapi/parser $(OUT)/core/fpdfapi/render $(OUT)/core/fpdfdoc $(OUT)/core/fpdftext $(OUT)/core/fxcodec/codec $(OUT)/core/fxcodec/jbig2 $(OUT)/core/fxcrt/xml $(OUT)/core/fxge/agg $(OUT)/core/fxge/apple $(OUT)/core/fxge/dib $(OUT)/core/fxge/fontdata/chromefontdata $(OUT)/core/fxge/freetype $(OUT)/core/fxge/win32 $(OUT)/fxjs $(OUT)/third_party/base/allocator/partition_allocator $(OUT)/third_party/agg23 $(OUT)/third_party/base/debug $(OUT)/third_party/base/win $(OUT)/third_party/skia_shared
+$(OUT): $(OUT)/fpdfsdk/formfiller $(OUT)/fpdfsdk/pwl $(OUT)/core/fdrm $(OUT)/core/fpdfapi/cmaps $(OUT)/core/fpdfapi/cmaps/CNS1 $(OUT)/core/fpdfapi/cmaps/GB1 $(OUT)/core/fpdfapi/cmaps/Japan1 $(OUT)/core/fpdfapi/cmaps/Korea1 $(OUT)/core/fpdfapi/edit $(OUT)/core/fpdfapi/font $(OUT)/core/fpdfapi/page $(OUT)/core/fpdfapi/parser $(OUT)/core/fpdfapi/render $(OUT)/core/fpdfdoc $(OUT)/core/fpdftext $(OUT)/core/fxcodec $(OUT)/core/fxcodec/basic $(OUT)/core/fxcodec/fax $(OUT)/core/fxcodec/flate $(OUT)/core/fxcodec/icc $(OUT)/core/fxcodec/jbig2 $(OUT)/core/fxcodec/jpeg $(OUT)/core/fxcodec/jpx $(OUT)/core/fxcrt/xml $(OUT)/core/fxge/agg $(OUT)/core/fxge/apple $(OUT)/core/fxge/dib $(OUT)/core/fxge/fontdata/chromefontdata $(OUT)/core/fxge/freetype $(OUT)/core/fxge/win32 $(OUT)/fxjs $(OUT)/third_party/base/allocator/partition_allocator $(OUT)/third_party/agg23 $(OUT)/third_party/base/debug $(OUT)/third_party/base/win $(OUT)/third_party/skia_shared
 	$(CMD_MKDIRP) $@
 
 $(OUT)/fpdfsdk/formfiller:
@@ -770,10 +779,28 @@ $(OUT)/core/fpdfdoc:
 $(OUT)/core/fpdftext:
 	$(CMD_MKDIRP) $@
 
-$(OUT)/core/fxcodec/codec:
+$(OUT)/core/fxcodec:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/basic:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/fax:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/flate:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/icc:
 	$(CMD_MKDIRP) $@
 
 $(OUT)/core/fxcodec/jbig2:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/jpeg:
+	$(CMD_MKDIRP) $@
+
+$(OUT)/core/fxcodec/jpx:
 	$(CMD_MKDIRP) $@
 
 $(OUT)/core/fxcrt/xml:
@@ -869,10 +896,28 @@ $(OUT)/core/fpdfdoc/%.o: core/fpdfdoc/%.cpp
 $(OUT)/core/fpdftext/%.o: core/fpdftext/%.cpp
 	$(CMD_CXX)
 
-$(OUT)/core/fxcodec/codec/%.o: core/fxcodec/codec/%.cpp
+$(OUT)/core/fxcodec/%.o: core/fxcodec/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/basic/%.o: core/fxcodec/basic/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/fax/%.o: core/fxcodec/fax/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/flate/%.o: core/fxcodec/flate/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/icc/%.o: core/fxcodec/icc/%.cpp
 	$(CMD_CXX)
 
 $(OUT)/core/fxcodec/jbig2/%.o: core/fxcodec/jbig2/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/jpeg/%.o: core/fxcodec/jpeg/%.cpp
+	$(CMD_CXX)
+
+$(OUT)/core/fxcodec/jpx/%.o: core/fxcodec/jpx/%.cpp
 	$(CMD_CXX)
 
 $(OUT)/core/fxcrt/%.o: core/fxcrt/%.cpp
