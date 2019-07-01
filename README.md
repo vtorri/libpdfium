@@ -9,6 +9,7 @@ git clone --recurse-submodules https://github.com/vtorri/libpdfium.git
 # Setting build system
 
 * cd libpdfium/pdfium
+* git checkout chromium/3838
 * mkdir build
 * cp ../build_config.h build
 * cp ../Makefile_pdfium .
