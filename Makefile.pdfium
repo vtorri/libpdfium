@@ -968,9 +968,7 @@ ifeq ($(OS),Windows)
 endif
 
 $(DESTDIR)$(libdir):
-ifneq ($(OS),Windows)
 	$(INSTALL) -d $(DESTDIR)$(libdir)
-endif
 
 $(DESTDIR)$(incdir)/cpp:
 	$(INSTALL) -d $(DESTDIR)$(incdir)/cpp
