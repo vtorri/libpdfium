@@ -23,6 +23,6 @@ git clone --recurse-submodules https://github.com/vtorri/libpdfium.git
  
  # Aditional rules
  
-  * 'make help' for the help
-  * 'make status' to know where the files will be installed, the arch, etc...
+  * 'make -f Makefile_pdfium help' for the help
+  * 'make -f Makefile_pdfium status' to know where the files will be installed, the arch, etc...
   
