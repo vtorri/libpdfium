@@ -172,6 +172,8 @@ ifeq ($(OS),Windows)
   PDFIUM_LIB = $(OUT)/libpdfium.dll
   PDFIUM_IMPLIB = $(OUT)/libpdfium.dll.a
   PDFIUM_IMPLIB_LINK = -Wl,--out-implib,$(PDFIUM_IMPLIB)
+else ifeq ($(OS),MACOS)
+  PDFIUM_LIB = $(OUT)/libpdfium.dylib
 else
   PDFIUM_LIB = $(OUT)/libpdfium.so
 endif
@@ -224,6 +226,7 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/fpdf_annot.cpp \
     fpdfsdk/fpdf_attachment.cpp \
     fpdfsdk/fpdf_catalog.cpp \
+    fpdfsdk/cpdfsdk_appstream.cpp \
     fpdfsdk/fpdf_dataavail.cpp \
     fpdfsdk/fpdf_doc.cpp \
     fpdfsdk/fpdf_editimg.cpp \
@@ -243,8 +246,6 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/fpdf_transformpage.cpp \
     fpdfsdk/fpdf_view.cpp \
 \
-    fpdfsdk/cfx_systemhandler.cpp \
-    fpdfsdk/cpdf_annotcontext.cpp \
     fpdfsdk/cpdfsdk_actionhandler.cpp \
     fpdfsdk/cpdfsdk_annot.cpp \
     fpdfsdk/cpdfsdk_annothandlermgr.cpp \
@@ -274,7 +275,6 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/formfiller/cffl_textfield.cpp \
     fpdfsdk/formfiller/cffl_textobject.cpp \
 \
-    fpdfsdk/pwl/cpwl_appstream.cpp \
     fpdfsdk/pwl/cpwl_button.cpp \
     fpdfsdk/pwl/cpwl_caret.cpp \
     fpdfsdk/pwl/cpwl_combo_box.cpp \
@@ -286,8 +286,6 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/pwl/cpwl_list_impl.cpp \
     fpdfsdk/pwl/cpwl_scroll_bar.cpp \
     fpdfsdk/pwl/cpwl_special_button.cpp \
-    fpdfsdk/pwl/cpwl_timer.cpp \
-    fpdfsdk/pwl/cpwl_timer_handler.cpp \
     fpdfsdk/pwl/cpwl_wnd.cpp
 
 PDFIUM_CORE_FDRM_SRC := \
@@ -385,8 +383,8 @@ PDFIUM_CORE_FPDFAPI_FONT_SRC := \
     core/fpdfapi/font/cpdf_type3font.cpp
 
 PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
-    core/fpdfapi/cpdf_modulemgr.cpp \
     core/fpdfapi/page/cpdf_allstates.cpp \
+    core/fpdfapi/page/cpdf_annotcontext.cpp \
     core/fpdfapi/page/cpdf_clippath.cpp \
     core/fpdfapi/page/cpdf_color.cpp \
     core/fpdfapi/page/cpdf_colorspace.cpp \
@@ -395,6 +393,8 @@ PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/page/cpdf_contentmarks.cpp \
     core/fpdfapi/page/cpdf_contentparser.cpp \
     core/fpdfapi/page/cpdf_devicecs.cpp \
+    core/fpdfapi/page/cpdf_dibbase.cpp \
+    core/fpdfapi/page/cpdf_dibtransferfunc.cpp \
     core/fpdfapi/page/cpdf_docpagedata.cpp \
     core/fpdfapi/page/cpdf_expintfunc.cpp \
     core/fpdfapi/page/cpdf_form.cpp \
@@ -411,7 +411,6 @@ PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/page/cpdf_pagemodule.cpp \
     core/fpdfapi/page/cpdf_pageobject.cpp \
     core/fpdfapi/page/cpdf_pageobjectholder.cpp \
-    core/fpdfapi/page/cpdf_pagerendercontext.cpp \
     core/fpdfapi/page/cpdf_path.cpp \
     core/fpdfapi/page/cpdf_pathobject.cpp \
     core/fpdfapi/page/cpdf_pattern.cpp \
@@ -427,6 +426,7 @@ PDFIUM_CORE_FPDFAPI_PAGE_SRC := \
     core/fpdfapi/page/cpdf_textobject.cpp \
     core/fpdfapi/page/cpdf_textstate.cpp \
     core/fpdfapi/page/cpdf_tilingpattern.cpp \
+    core/fpdfapi/page/cpdf_transferfunc.cpp \
     core/fpdfapi/page/cpdf_transparency.cpp
 
 PDFIUM_CORE_FPDFAPI_PARSER_SRC := \
@@ -467,22 +467,25 @@ PDFIUM_CORE_FPDFAPI_PARSER_SRC := \
 PDFIUM_CORE_FPDFAPI_RENDER_SRC := \
     core/fpdfapi/render/cpdf_charposlist.cpp \
     core/fpdfapi/render/cpdf_devicebuffer.cpp \
-    core/fpdfapi/render/cpdf_dibbase.cpp \
-    core/fpdfapi/render/cpdf_dibtransferfunc.cpp \
     core/fpdfapi/render/cpdf_docrenderdata.cpp \
     core/fpdfapi/render/cpdf_imagecacheentry.cpp \
     core/fpdfapi/render/cpdf_imageloader.cpp \
     core/fpdfapi/render/cpdf_imagerenderer.cpp \
     core/fpdfapi/render/cpdf_pagerendercache.cpp \
+    core/fpdfapi/render/cpdf_pagerendercontext.cpp \
     core/fpdfapi/render/cpdf_progressiverenderer.cpp \
     core/fpdfapi/render/cpdf_rendercontext.cpp \
     core/fpdfapi/render/cpdf_renderoptions.cpp \
     core/fpdfapi/render/cpdf_renderstatus.cpp \
     core/fpdfapi/render/cpdf_scaledrenderbuffer.cpp \
     core/fpdfapi/render/cpdf_textrenderer.cpp \
-    core/fpdfapi/render/cpdf_transferfunc.cpp \
     core/fpdfapi/render/cpdf_type3cache.cpp \
-    core/fpdfapi/render/cpdf_type3glyphs.cpp
+    core/fpdfapi/render/cpdf_type3glyphmap.cpp
+
+ifeq ($(OS),Windows)
+    PDFIUM_CORE_FPDFAPI_RENDER_SRC += core/fpdfapi/render/cpdf_windowsrenderdevice.cpp
+endif
+
 
 PDFIUM_CORE_FPDFDOC_SRC := \
     core/fpdfdoc/cline.cpp \
@@ -565,6 +568,7 @@ PDFIUM_CORE_FXCRT_SRC := \
     core/fxcrt/cfx_memorystream.cpp \
     core/fxcrt/cfx_readonlymemorystream.cpp \
     core/fxcrt/cfx_seekablestreamproxy.cpp \
+    core/fxcrt/cfx_timer.cpp \
     core/fxcrt/cfx_utf8decoder.cpp \
     core/fxcrt/cfx_utf8encoder.cpp \
     core/fxcrt/cfx_widetextbuf.cpp \
