@@ -260,9 +260,9 @@ PDFIUM_FPDFSDK_SRC := \
     fpdfsdk/cpdfsdk_helpers.cpp \
     fpdfsdk/cpdfsdk_interactiveform.cpp \
     fpdfsdk/cpdfsdk_pageview.cpp \
+    fpdfsdk/cpdfsdk_pauseadapter.cpp \
     fpdfsdk/cpdfsdk_widget.cpp \
     fpdfsdk/cpdfsdk_widgethandler.cpp \
-    fpdfsdk/ipdfsdk_pauseadapter.cpp \
 \
     fpdfsdk/formfiller/cffl_button.cpp \
     fpdfsdk/formfiller/cffl_checkbox.cpp \
@@ -476,6 +476,7 @@ PDFIUM_CORE_FPDFAPI_RENDER_SRC := \
     core/fpdfapi/render/cpdf_progressiverenderer.cpp \
     core/fpdfapi/render/cpdf_rendercontext.cpp \
     core/fpdfapi/render/cpdf_renderoptions.cpp \
+    core/fpdfapi/render/cpdf_rendershading.cpp \
     core/fpdfapi/render/cpdf_renderstatus.cpp \
     core/fpdfapi/render/cpdf_scaledrenderbuffer.cpp \
     core/fpdfapi/render/cpdf_textrenderer.cpp \
