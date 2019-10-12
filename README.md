@@ -13,6 +13,7 @@ git clone --recurse-submodules https://github.com/vtorri/libpdfium.git
 * mkdir build
 * cp ../build_config.h build
 * cp ../Makefile.pdfium .
+* cp ../libpkgconfig.pc.in .
 
 In addition, on Windows:
 
@@ -21,13 +22,16 @@ In addition, on Windows:
 
 # Compilation and installation
 
- * make -f Makefile_pdfium
- * make -f Makefile_pdfium install
- 
+* make -f Makefile_pdfium OS=my_os
+* make -f Makefile_pdfium install
+
  you can of course run 'make' in parallal mode
- 
- # Aditional rules
- 
-  * 'make -f Makefile_pdfium help' for the help
-  * 'make -f Makefile_pdfium status' to know where the files will be installed, the arch, etc...
-  
+
+# Aditional rules
+
+* 'make -f Makefile_pdfium help' for the help
+* 'make -f Makefile_pdfium status' to know where the files will be installed, the arch, etc...
+
+# Example of compilation on Windows:
+
+* make -j 8 -f Makefile.pdfium prefix=/opt/pdfium OS=Windows install

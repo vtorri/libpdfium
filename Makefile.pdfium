@@ -16,15 +16,18 @@ default: all
 help:
 	@echo
 	@echo "Options:"
-	@echo "OS........: Unix | Windows | Darwin"
-	@echo "host......: host followed by minus added to compilers and tools"
-	@echo "profile...: debug | release (change compilation flags)"
-	@echo "prefix....: installation prefix"
-	@echo "CC........: C compiler"
-	@echo "CXX.......: C++ compiler"
-	@echo "CFLAGS....: user defined C flags"
-	@echo "LDFLAGS...: user defined linker flags"
-	@echo "V.........: 0: not verbose, 1: verbose"
+	@echo "OS..........: Unix | Windows | Darwin"
+	@echo "host........: host followed by minus added to compilers and tools"
+	@echo "profile.....: debug | release (change compilation flags)"
+	@echo "prefix......: installation prefix"
+	@echo "bindir......: installation path of binaries (default $prefix/bin)"
+	@echo "libdir......: installation path of libraries (default $prefix/lib)"
+	@echo "includedir..: installation path of header files (default $prefix/include)"
+	@echo "CC..........: C compiler"
+	@echo "CXX.........: C++ compiler"
+	@echo "CFLAGS......: user defined C flags"
+	@echo "LDFLAGS.....: user defined linker flags"
+	@echo "V...........: 0: not verbose, 1: verbose"
 	@echo
 	@echo "make status to know the configuration"
 
@@ -78,10 +81,13 @@ endif
 
 # Configuration
 
+VERSION := 3940
+
 prefix ?= /usr/local
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
 incdir ?= $(prefix)/include
+pkgdir ?= $(libdir)/pkgconfig
 host ?=
 profile ?= debug
 
@@ -186,6 +192,7 @@ ifeq ($(V),0)
   NV_CC =     @echo "    CC $@";
   NV_CXX =    @echo "   CXX $@";
   NV_LINK =   @echo "  LINK $@";
+  NV_PC =     @echo "    PC $@";
 endif
 
 CMD_MKDIRP = $(NV_MKDIRP) mkdir -p
@@ -193,6 +200,13 @@ CMD_RM = $(NV_RM) rm -rf
 CMD_CC = $(NV_CC) $(CC) $(CFLAGS) -c -o $@ $^
 CMD_CXX = $(NV_CXX) $(CXX) $(CFLAGS) $(PCXXFLAGS) -c -o $@ $^
 CMD_LINK = $(NV_LINK) $(CXX) -shared $(PDFIUM_IMPLIB_LINK) -o $@ $^ $(LDFLAGS)
+CMD_PC = sed -i \
+  -e 's,@VERSION\@,$(VERSION),g' \
+  -e 's,@prefix\@,$(prefix),g' \
+  -e 's,@bindir\@,$(bindir),g' \
+  -e 's,@libdir\@,$(libdir),g' \
+  -e 's,@includedir\@,$(incdir),g' \
+  $@ || rm $@
 
 
 # Files
@@ -975,18 +989,26 @@ endif
 $(DESTDIR)$(libdir):
 	$(INSTALL) -d $(DESTDIR)$(libdir)
 
-$(DESTDIR)$(incdir)/cpp:
-	$(INSTALL) -d $(DESTDIR)$(incdir)/cpp
+$(DESTDIR)$(incdir)/pdfium/cpp:
+	$(INSTALL) -d $(DESTDIR)$(incdir)/pdfium/cpp
 
-install: $(PDFIUM_LIB) $(DESTDIR)$(bindir) $(DESTDIR)$(libdir) $(DESTDIR)$(incdir)/cpp
+$(DESTDIR)$(pkgdir):
+	$(INSTALL) -d $(DESTDIR)$(pkgdir)
+
+libpdfium.pc:
+	cp libpdfium.pc.in libpdfium.pc
+	$(CMD_PC)
+
+install: $(PDFIUM_LIB) $(DESTDIR)$(bindir) $(DESTDIR)$(libdir) $(DESTDIR)$(incdir)/pdfium/cpp $(DESTDIR)$(pkgdir) libpdfium.pc
 ifeq ($(OS),Windows)
 	$(INSTALL_LIB) $(PDFIUM_LIB) $(DESTDIR)$(bindir)
 	$(INSTALL_LIB) $(PDFIUM_IMPLIB) $(DESTDIR)$(libdir)
 else
 	$(INSTALL_LIB) $(PDFIUM_LIB) $(DESTDIR)$(libdir)
 endif
-	$(INSTALL_HDR) $(foreach hdr, $(PDFIUM_PUBLIC_HDR), public/$(hdr)) $(DESTDIR)$(incdir)
-	$(INSTALL_HDR) $(foreach hdr, $(PDFIUM_PUBLIC_CPP_HDR), public/cpp/$(hdr)) $(DESTDIR)$(incdir)/cpp
+	$(INSTALL_HDR) $(foreach hdr, $(PDFIUM_PUBLIC_HDR), public/$(hdr)) $(DESTDIR)$(incdir)/pdfium
+	$(INSTALL_HDR) $(foreach hdr, $(PDFIUM_PUBLIC_CPP_HDR), public/cpp/$(hdr)) $(DESTDIR)$(incdir)/pdfium/cpp
+	$(INSTALL) libpdfium.pc $(DESTDIR)$(pkgdir)
 
 uninstall: $(PDFIUM_LIB)
 ifeq ($(OS),Windows)
@@ -995,8 +1017,9 @@ ifeq ($(OS),Windows)
 else
 	$(CMD_RM) $(DESTDIR)$(libdir)/$(notdir $(PDFIUM_LIB))
 endif
-	$(CMD_RM) $(foreach hdr, $(PDFIUM_PUBLIC_HDR), $(DESTDIR)$(incdir)/$(hdr))
-	$(CMD_RM) $(foreach hdr, $(PDFIUM_PUBLIC_CPP_HDR), $(DESTDIR)$(incdir)/cpp/$(hdr))
+	$(CMD_RM) $(foreach hdr, $(PDFIUM_PUBLIC_HDR), $(DESTDIR)$(incdir)/pdfium/$(hdr))
+	$(CMD_RM) $(foreach hdr, $(PDFIUM_PUBLIC_CPP_HDR), $(DESTDIR)$(incdir)/pdfium/cpp/$(hdr))
+	$(CMD_RM) $(DESTDIR)$(pkgdir)/libpdfium.pc
 
 clean:
 	$(CMD_RM) $(OUT)

@@ -1,0 +1,12 @@
+prefix=@prefix@
+bindir=@bindir@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libpdfium
+Description: PDF rendering library
+Version: @VERSION@
+Requires:
+Requires.private: icu-uc lcms2 freetype2 libpng libopenjp2 libtiff-4
+Libs: -L${libdir} -lpdfium
+Cflags: -I${includedir}
