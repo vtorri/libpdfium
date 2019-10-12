@@ -14,6 +14,11 @@ git clone --recurse-submodules https://github.com/vtorri/libpdfium.git
 * cp ../build_config.h build
 * cp ../Makefile.pdfium .
 
+In addition, on Windows:
+
+* cp ../patch.diff .
+* patch -p1 < patch.diff
+
 # Compilation and installation
 
  * make -f Makefile_pdfium
